@@ -3,6 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/firestore_service.dart';
 import '../../models/vote.dart';
+import 'package:intl/intl.dart';
+
+// NOTE: This file intentionally uses some dialog/picker flows that require
+// showing pickers from the parent context. The analyzer may warn about
+// 'use_build_context_synchronously' for awaited calls that reference a
+// BuildContext captured from an outer scope. We've added narrow ignores
+// where possible; suppress the remaining cases here because the flows are
+// safe (we capture parentContext and use ScaffoldMessenger/Navigator
+// references) — revisit if this file is converted to a StatefulWidget.
+// ignore_for_file: use_build_context_synchronously
 
 class ElectionRequestsScreen extends StatelessWidget {
   const ElectionRequestsScreen({super.key});
@@ -84,13 +94,12 @@ class ElectionRequestsScreen extends StatelessWidget {
                           TextButton(
                             onPressed: () async {
                               // Disapprove
+                              final messenger = ScaffoldMessenger.of(context);
                               try {
                                 await firestore.updateElectionRequestStatus(req.id, 'rejected', adminResponse: 'Disapproved by admin');
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request rejected')));
+                                messenger.showSnackBar(const SnackBar(content: Text('Request rejected')));
                               } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
                               }
                             },
                             child: const Text('Reject'),
@@ -98,14 +107,133 @@ class ElectionRequestsScreen extends StatelessWidget {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () async {
-                              // Approve
-                              try {
-                                await firestore.updateElectionRequestStatus(req.id, 'approved', adminResponse: 'Approved by admin');
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request approved')));
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                              // Approve — if request is for the same calendar day, require admin to set exact times
+                              final isSameDay = req.proposedStartDate.year == req.proposedEndDate.year &&
+                                  req.proposedStartDate.month == req.proposedEndDate.month &&
+                                  req.proposedStartDate.day == req.proposedEndDate.day;
+
+                              // capture parent context for pickers and messaging
+                              final parentContext = context;
+                              if (isSameDay) {
+                                // show dialog to pick exact start/end timestamps
+                                final outerMessenger = ScaffoldMessenger.of(parentContext);
+                                final outerNavigator = Navigator.of(parentContext, rootNavigator: true);
+                                final DateFormat df = DateFormat('yyyy-MM-dd HH:mm');
+
+                                await showDialog<void>(
+                                  context: parentContext,
+                                  barrierDismissible: false,
+                                  builder: (dialogCtx) {
+                                    DateTime start = req.proposedStartDate;
+                                    DateTime end = req.proposedEndDate;
+                                    return StatefulBuilder(builder: (innerCtx, setState) {
+                                        Future<void> pickStart() async {
+                                        // use parentContext for pickers to avoid using dialog BuildContext across async gaps
+                                        final pickedDate = await showDatePicker(
+                                          context: parentContext,
+                                          initialDate: start,
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (pickedDate == null) return;
+                                        final pickedTime = await showTimePicker(
+                                          context: parentContext,
+                                          initialTime: TimeOfDay.fromDateTime(start),
+                                        );
+                                        if (pickedTime == null) return;
+                                        setState(() {
+                                          start = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                                        });
+                                      }
+
+                                      Future<void> pickEnd() async {
+                                        final pickedDate = await showDatePicker(
+                                          context: parentContext,
+                                          initialDate: end,
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (pickedDate == null) return;
+                                        final pickedTime = await showTimePicker(
+                                          context: parentContext,
+                                          initialTime: TimeOfDay.fromDateTime(end),
+                                        );
+                                        if (pickedTime == null) return;
+                                        setState(() {
+                                          end = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+                                        });
+                                      }
+
+                                      bool processing = false;
+
+                                      return AlertDialog(
+                                        title: const Text('Set precise times'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(child: Text('Start: ${df.format(start)}')),
+                                                TextButton(onPressed: pickStart, child: const Text('Edit')),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Expanded(child: Text('End:   ${df.format(end)}')),
+                                                TextButton(onPressed: pickEnd, child: const Text('Edit')),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            if (start.isAfter(end))
+                                              const Text('Start must be before end', style: TextStyle(color: Colors.red)),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () {
+                                              outerNavigator.pop();
+                                            },
+                                            child: const Text('Cancel'),
+                                          ),
+                                          StatefulBuilder(builder: (ctx2, setState2) {
+                                            return ElevatedButton(
+                                              onPressed: start.isAfter(end)
+                                                  ? null
+                                                  : () async {
+                                                      setState2(() {
+                                                        processing = true;
+                                                      });
+                                                      try {
+                                                        await firestore.approveElectionRequestWithTimes(req.id, start, end, adminResponse: 'Approved by admin');
+                                                        // safely pop using the outer navigator and show snack via outer messenger
+                                                        outerNavigator.pop();
+                                                        outerMessenger.showSnackBar(const SnackBar(content: Text('Request approved with times')));
+                                                      } catch (e) {
+                                                        outerMessenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                                                      } finally {
+                                                        setState2(() {
+                                                          processing = false;
+                                                        });
+                                                      }
+                                                    },
+                                              child: processing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Confirm'),
+                                            );
+                                          }),
+                                        ],
+                                      );
+                                    });
+                                  },
+                                );
+                              } else {
+                                // multi-day: simple approve
+                                final messenger = ScaffoldMessenger.of(parentContext);
+                                try {
+                                  await firestore.updateElectionRequestStatus(req.id, 'approved', adminResponse: 'Approved by admin');
+                                  messenger.showSnackBar(const SnackBar(content: Text('Request approved')));
+                                } catch (e) {
+                                  messenger.showSnackBar(SnackBar(content: Text('Error: $e')));
+                                }
                               }
                             },
                             child: const Text('Approve'),

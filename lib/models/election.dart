@@ -105,12 +105,39 @@ class Election {
 
   bool get isActive {
     final now = DateTime.now();
-    return status == ElectionStatus.active && 
-           now.isAfter(startDate) && 
-           now.isBefore(endDate);
+    // If the election is configured to start and end on the same calendar
+    // day, treat startDate/endDate as full timestamps (time-bound voting).
+    // Otherwise, treat multi-day elections as active for entire calendar days
+    // inclusive between start and end.
+    final sameDay = startDate.year == endDate.year &&
+        startDate.month == endDate.month &&
+        startDate.day == endDate.day;
+
+    if (sameDay) {
+      // Use precise timestamps (inclusive).
+      return status == ElectionStatus.active &&
+          !now.isBefore(startDate) &&
+          !now.isAfter(endDate);
+    }
+
+    // Multi-day election: active from start of startDate to end of endDate.
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    return status == ElectionStatus.active && !now.isBefore(start) && !now.isAfter(end);
   }
 
   bool get hasEnded {
-    return DateTime.now().isAfter(endDate) || status == ElectionStatus.completed;
+    final now = DateTime.now();
+    final sameDay = startDate.year == endDate.year &&
+        startDate.month == endDate.month &&
+        startDate.day == endDate.day;
+
+    if (sameDay) {
+      // Ended once the precise end timestamp passes.
+      return now.isAfter(endDate) || status == ElectionStatus.completed;
+    }
+
+    final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999);
+    return now.isAfter(end) || status == ElectionStatus.completed;
   }
 }

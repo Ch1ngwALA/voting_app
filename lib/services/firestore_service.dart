@@ -331,6 +331,25 @@ class FirestoreService {
     await _db.collection('election_requests').doc(requestId).update(updateData);
   }
 
+  /// Approve an election request and set precise start/end timestamps.
+  /// This is used when an election is for the same calendar day and the
+  /// admin must provide exact voting times.
+  Future<void> approveElectionRequestWithTimes(
+    String requestId,
+    DateTime startDateTime,
+    DateTime endDateTime, {
+    String? adminResponse,
+  }) async {
+    final updateData = {
+      'proposedStartDate': Timestamp.fromDate(startDateTime),
+      'proposedEndDate': Timestamp.fromDate(endDateTime),
+      'status': 'approved',
+      if (adminResponse != null) 'adminResponse': adminResponse,
+    };
+
+    await _db.collection('election_requests').doc(requestId).update(updateData);
+  }
+
   // Analytics and reporting
   Future<Map<String, dynamic>> getElectionStats(String electionId) async {
     final election = await getElection(electionId);
