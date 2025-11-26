@@ -1,3 +1,8 @@
+// TODO: The project currently uses RadioListTile which has deprecated
+// APIs (groupValue/onChanged). Migrate to the new RadioGroup API when
+// upgrading Flutter. For now, suppress the analyzer warnings in this file.
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -101,7 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    color: Theme.of(context).primaryColor.withAlpha((0.1 * 255).round()),
                     borderRadius: BorderRadius.circular(40),
                   ),
                   child: Icon(
@@ -224,6 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
+                          // TODO: migrate to the new RadioGroup API when ready.
                           Expanded(
                             child: RadioListTile<UserRole>(
                               title: const Text('Student'),

@@ -22,6 +22,7 @@ import 'screens/contact/contact_screen.dart';
 import 'screens/debug/firebase_test_screen.dart';
 import 'screens/debug/quick_firebase_check.dart';
 import 'utils/app_theme.dart';
+import 'screens/elections/results_overview_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -109,6 +110,10 @@ class MyApp extends StatelessWidget {
       GoRoute(
         path: '/check-firebase',
         builder: (context, state) => const QuickFirebaseCheckScreen(),
+      ),
+      GoRoute(
+        path: '/results',
+        builder: (context, state) => const ResultsOverviewScreen(),
       ),
     ],
   );

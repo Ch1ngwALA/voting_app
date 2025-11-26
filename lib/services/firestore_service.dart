@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../models/election.dart';
 import '../models/candidate.dart';
@@ -42,31 +43,31 @@ class FirestoreService {
     String? university,
     String? department,
   }) {
-    print('Getting elections stream for university: $university, department: $department');
+  debugPrint('Getting elections stream for university: $university, department: $department');
     
     try {
       // If no filters, just get all elections (simplest query)
       if (university == null && department == null) {
-        print('Fetching ALL elections (no filters)');
+  debugPrint('Fetching ALL elections (no filters)');
         return _db.collection('election_requests').snapshots().map((snapshot) {
-          print('All elections snapshot received: ${snapshot.docs.length} documents');
+          debugPrint('All elections snapshot received: ${snapshot.docs.length} documents');
           if (snapshot.docs.isEmpty) {
-            print('WARNING: No election documents found in Firestore!');
+            debugPrint('WARNING: No election documents found in Firestore!');
           }
           final elections = snapshot.docs.map((doc) {
             try {
-              print('Election doc: ${doc.id}');
+              debugPrint('Election doc: ${doc.id}');
               final data = doc.data();
-              print('  Title: ${data['title']}');
-              print('  University: ${data['university']}');
-              print('  Department: ${data['department']}');
+              debugPrint('  Title: ${data['title']}');
+              debugPrint('  University: ${data['university']}');
+              debugPrint('  Department: ${data['department']}');
               return Election.fromFirestore(doc);
             } catch (e) {
-              print('Error parsing election ${doc.id}: $e');
+              debugPrint('Error parsing election ${doc.id}: $e');
               rethrow;
             }
           }).toList();
-          print('Successfully parsed ${elections.length} elections');
+          debugPrint('Successfully parsed ${elections.length} elections');
           return elections;
         });
       }
@@ -87,23 +88,23 @@ class FirestoreService {
       query = query.orderBy('createdAt', descending: true);
 
       return query.snapshots().map((snapshot) {
-        print('Elections snapshot received: ${snapshot.docs.length} documents');
+  debugPrint('Elections snapshot received: ${snapshot.docs.length} documents');
         final elections = snapshot.docs.map((doc) {
           try {
-            print('Election doc: ${doc.id}, data: ${doc.data()}');
+            debugPrint('Election doc: ${doc.id}, data: ${doc.data()}');
             return Election.fromFirestore(doc);
           } catch (e) {
-            print('Error parsing election ${doc.id}: $e');
+            debugPrint('Error parsing election ${doc.id}: $e');
             rethrow;
           }
         }).toList();
-        print('Parsed ${elections.length} elections');
+  debugPrint('Parsed ${elections.length} elections');
         return elections;
       }).handleError((error) {
-        print('Stream error: $error');
+  debugPrint('Stream error: $error');
         // If it's an index error, try without ordering
         if (error.toString().contains('index')) {
-          print('Composite index required. Fetching without ordering...');
+          debugPrint('Composite index required. Fetching without ordering...');
           return getElectionsStreamWithoutOrdering(
             university: university,
             department: department,
@@ -112,7 +113,7 @@ class FirestoreService {
         throw error;
       });
     } catch (e) {
-      print('Error setting up elections stream: $e');
+  debugPrint('Error setting up elections stream: $e');
       rethrow;
     }
   }
@@ -121,7 +122,7 @@ class FirestoreService {
     String? university,
     String? department,
   }) {
-    print('Getting elections stream WITHOUT ordering');
+  debugPrint('Getting elections stream WITHOUT ordering');
     
     Query query = _db.collection('election_requests');
     
@@ -134,11 +135,11 @@ class FirestoreService {
     }
 
     return query.snapshots().map((snapshot) {
-      print('Elections snapshot (no order) received: ${snapshot.docs.length} documents');
+  debugPrint('Elections snapshot (no order) received: ${snapshot.docs.length} documents');
       final elections = snapshot.docs.map((doc) => Election.fromFirestore(doc)).toList();
       // Sort in memory by createdAt
       elections.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      print('Parsed and sorted ${elections.length} elections');
+  debugPrint('Parsed and sorted ${elections.length} elections');
       return elections;
     });
   }
@@ -225,7 +226,7 @@ class FirestoreService {
       await batch.commit();
       return true;
     } catch (e) {
-      print('Error casting vote: $e');
+      debugPrint('Error casting vote: $e');
       return false;
     }
   }
@@ -265,6 +266,21 @@ class FirestoreService {
     });
   }
 
+  /// Stream that returns a list of elections with basic metadata and their
+  /// current vote counts. Each map contains { 'id', 'name', 'votes' }.
+  Stream<List<Map<String, dynamic>>> getAllElectionsWithVotesStream() {
+    return _db.collection('election_requests').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['title'] ?? data['name'] ?? 'Unnamed Election',
+          'votes': Map<String, int>.from(data['votes'] ?? {}),
+        };
+      }).toList();
+    });
+  }
+
   // Election request operations
   Future<String> createElectionRequest(ElectionRequest request) async {
     final docRef = await _db.collection('election_requests').add(request.toFirestore());
@@ -300,7 +316,7 @@ class FirestoreService {
     if (election == null) return {};
 
     final candidates = await getCandidates(electionId);
-    final totalVotes = election.votes.values.fold(0, (sum, votes) => sum + votes);
+  final totalVotes = election.votes.values.fold(0, (acc, votes) => acc + votes);
 
     return {
       'totalVotes': totalVotes,

@@ -37,10 +37,10 @@ class ElectionListScreen extends StatelessWidget {
                 department: null, // Show all departments
               ),
               builder: (context, snapshot) {
-                print('ElectionListScreen - ConnectionState: ${snapshot.connectionState}');
-                print('ElectionListScreen - HasError: ${snapshot.hasError}');
-                print('ElectionListScreen - HasData: ${snapshot.hasData}');
-                print('ElectionListScreen - Data: ${snapshot.data?.length ?? 0} elections');
+                debugPrint('ElectionListScreen - ConnectionState: ${snapshot.connectionState}');
+                debugPrint('ElectionListScreen - HasError: ${snapshot.hasError}');
+                debugPrint('ElectionListScreen - HasData: ${snapshot.hasData}');
+                debugPrint('ElectionListScreen - Data: ${snapshot.data?.length ?? 0} elections');
                 
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -56,7 +56,7 @@ class ElectionListScreen extends StatelessWidget {
                 }
 
                 if (snapshot.hasError) {
-                  print('ElectionListScreen - Error: ${snapshot.error}');
+                  debugPrint('ElectionListScreen - Error: ${snapshot.error}');
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -198,7 +198,7 @@ class ElectionListScreen extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withAlpha((0.1 * 255).round()),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -276,7 +276,7 @@ class ElectionListScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${election.votes.values.fold(0, (sum, votes) => sum + votes)} votes',
+                    '${election.votes.values.fold(0, (acc, votes) => acc + votes)} votes',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),

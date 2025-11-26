@@ -103,14 +103,14 @@ class _QuickFirebaseCheckScreenState extends State<QuickFirebaseCheckScreen> {
                 ),
               const SizedBox(height: 24),
               Card(
-                color: _statusColor.withOpacity(0.1),
+                color: _statusColor.withAlpha((0.1 * 255).round()),
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Text(
                     _status,
                     style: TextStyle(
                       fontSize: 16,
-                      color: _statusColor.withOpacity(0.9),
+                      color: _statusColor.withAlpha((0.9 * 255).round()),
                       fontWeight: FontWeight.w500,
                     ),
                     textAlign: TextAlign.center,

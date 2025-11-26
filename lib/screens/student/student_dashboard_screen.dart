@@ -75,11 +75,9 @@ class StudentDashboardScreen extends StatelessWidget {
                     'Results',
                     Icons.analytics,
                     Colors.purple,
-                    () {
-                      // TODO: Navigate to results screen
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Results feature coming soon')),
-                      );
+                      () {
+                      // Navigate to the results overview screen (push so back works)
+                      context.push('/results');
                     },
                   ),
                 ],

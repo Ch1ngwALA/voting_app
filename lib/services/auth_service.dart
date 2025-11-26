@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import 'firestore_service.dart';
 
@@ -23,8 +24,8 @@ class AuthService extends ChangeNotifier {
       try {
         _currentUser = await _firestoreService.getUser(firebaseUser.uid);
         notifyListeners();
-      } catch (e) {
-        print('Error loading user data: $e');
+        } catch (e) {
+        debugPrint('Error loading user data: $e');
         _currentUser = null;
         notifyListeners();
       }
@@ -63,24 +64,24 @@ class AuthService extends ChangeNotifier {
         );
 
         await _firestoreService.createUser(user);
-        _currentUser = user;
-        notifyListeners();
-        print('Sign up successful for user: ${credential.user!.uid}');
+  _currentUser = user;
+  notifyListeners();
+  debugPrint('Sign up successful for user: ${credential.user!.uid}');
         return null;
       }
     } on auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuthException during sign up: Code=${e.code}, Message=${e.message}');
+  debugPrint('FirebaseAuthException during sign up: Code=${e.code}, Message=${e.message}');
       return _handleAuthError(e);
     } on TypeError catch (e, stackTrace) {
       // Handle the PigeonUserDetails casting error specifically
-      print('TypeError during sign up (PigeonUserDetails issue): $e');
-      print('Stack trace: $stackTrace');
+  debugPrint('TypeError during sign up (PigeonUserDetails issue): $e');
+  debugPrint('Stack trace: $stackTrace');
       
       // Check if user is actually created despite the error
       await Future.delayed(const Duration(milliseconds: 500));
       final currentFirebaseUser = _auth.currentUser;
       if (currentFirebaseUser != null) {
-        print('User created despite error: ${currentFirebaseUser.uid}');
+  debugPrint('User created despite error: ${currentFirebaseUser.uid}');
         
         // Create the user document
         try {
@@ -98,16 +99,16 @@ class AuthService extends ChangeNotifier {
           _currentUser = user;
           notifyListeners();
           return null; // Success despite the error
-        } catch (firestoreError) {
-          print('Error creating user document: $firestoreError');
+          } catch (firestoreError) {
+          debugPrint('Error creating user document: $firestoreError');
           return 'Account created but failed to save profile: $firestoreError';
         }
       }
       
       return 'Registration failed due to internal error: ${e.toString()}\n\nPlease try again or restart the app.';
     } catch (e, stackTrace) {
-      print('Unexpected error during sign up: $e');
-      print('Stack trace: $stackTrace');
+  debugPrint('Unexpected error during sign up: $e');
+  debugPrint('Stack trace: $stackTrace');
       // Return more detailed error message
       return 'Registration failed: ${e.toString()}\n\nThis might be because Email/Password authentication is not enabled in Firebase Console.';
     } finally {
@@ -136,41 +137,41 @@ class AuthService extends ChangeNotifier {
         return 'Login failed: No user returned';
       }
       
-      print('Sign in successful for user: ${credential.user!.uid}');
+  debugPrint('Sign in successful for user: ${credential.user!.uid}');
       
       // Load user data from Firestore
       try {
         _currentUser = await _firestoreService.getUser(credential.user!.uid);
-        print('User data loaded: ${_currentUser?.name}, Role: ${_currentUser?.role}');
+          debugPrint('User data loaded: ${_currentUser?.name}, Role: ${_currentUser?.role}');
         notifyListeners();
       } catch (firestoreError) {
-        print('Warning: Could not load user data from Firestore: $firestoreError');
+  debugPrint('Warning: Could not load user data from Firestore: $firestoreError');
         // User is authenticated but profile might not exist yet
         // The auth state listener will handle this
       }
       
       return null;
     } on auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuthException during sign in: Code=${e.code}, Message=${e.message}');
+  debugPrint('FirebaseAuthException during sign in: Code=${e.code}, Message=${e.message}');
       return _handleAuthError(e);
     } on TypeError catch (e, stackTrace) {
       // Handle the PigeonUserDetails casting error specifically
-      print('TypeError during sign in (PigeonUserDetails issue): $e');
-      print('Stack trace: $stackTrace');
+  debugPrint('TypeError during sign in (PigeonUserDetails issue): $e');
+  debugPrint('Stack trace: $stackTrace');
       
       // Check if user is actually signed in despite the error
       await Future.delayed(const Duration(milliseconds: 500));
       final currentFirebaseUser = _auth.currentUser;
       if (currentFirebaseUser != null) {
-        print('User is signed in despite error: ${currentFirebaseUser.uid}');
+  debugPrint('User is signed in despite error: ${currentFirebaseUser.uid}');
         
         // Try to load user data
         try {
           _currentUser = await _firestoreService.getUser(currentFirebaseUser.uid);
-          print('User data loaded after error: ${_currentUser?.name}, Role: ${_currentUser?.role}');
+          debugPrint('User data loaded after error: ${_currentUser?.name}, Role: ${_currentUser?.role}');
           notifyListeners();
-        } catch (firestoreError) {
-          print('Warning: Could not load user data: $firestoreError');
+          } catch (firestoreError) {
+          debugPrint('Warning: Could not load user data: $firestoreError');
         }
         
         return null; // Success despite the error
@@ -178,8 +179,8 @@ class AuthService extends ChangeNotifier {
       
       return 'Login failed due to internal error: ${e.toString()}\n\nPlease try again or restart the app.';
     } catch (e, stackTrace) {
-      print('Unexpected error during sign in: $e');
-      print('Stack trace: $stackTrace');
+  debugPrint('Unexpected error during sign in: $e');
+  debugPrint('Stack trace: $stackTrace');
       // Return more detailed error message
       return 'Login failed: ${e.toString()}\n\nThis might be because Email/Password authentication is not enabled in Firebase Console.';
     } finally {
@@ -206,7 +207,7 @@ class AuthService extends ChangeNotifier {
   }
 
   String _handleAuthError(auth.FirebaseAuthException e) {
-    print('Firebase Auth Error - Code: ${e.code}, Message: ${e.message}');
+  debugPrint('Firebase Auth Error - Code: ${e.code}, Message: ${e.message}');
     
     switch (e.code) {
       case 'user-not-found':

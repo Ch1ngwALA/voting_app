@@ -117,7 +117,7 @@ class HomeScreenSimple extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withAlpha((0.1 * 255).round()),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Column(
@@ -163,9 +163,9 @@ class LoginScreenSimple extends StatelessWidget {
           builder: (context, constraints) => SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
+              child: const IntrinsicHeight(
                 child: Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: EdgeInsets.all(24.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -174,16 +174,16 @@ class LoginScreenSimple extends StatelessWidget {
                         size: 100,
                         color: Colors.blue,
                       ),
-                      const SizedBox(height: 32),
-                      const Text(
+                      SizedBox(height: 32),
+                      Text(
                         'Demo Login Screen',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: 16),
+                      Text(
                         'This is a working Flutter app!\nConnect to Firebase to enable authentication.',
                         textAlign: TextAlign.center,
                       ),

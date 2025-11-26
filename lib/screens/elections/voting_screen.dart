@@ -139,7 +139,7 @@ class _VotingScreenState extends State<VotingScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            color: Theme.of(context).primaryColor.withAlpha((0.1 * 255).round()),
             border: Border(
               bottom: BorderSide(
                 color: Theme.of(context).dividerColor,

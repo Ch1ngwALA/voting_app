@@ -24,7 +24,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen> {
     setState(() {
       _logs.add('${DateTime.now().toIso8601String().substring(11, 19)}: $message');
     });
-    print(message);
+  debugPrint(message);
   }
 
   Future<void> _testFirebase() async {

@@ -115,12 +115,12 @@ class ElectionDetailsScreen extends StatelessWidget {
               if (user.role == UserRole.admin) {
                 if (election.hasEnded) {
                   // Return a disabled FAB with tooltip explaining why
-                  return Tooltip(
+                  return const Tooltip(
                     message: 'Cannot add candidates after the election has ended',
                     child: FloatingActionButton.extended(
                       onPressed: null,
-                      icon: const Icon(Icons.person_add),
-                      label: const Text('Add Candidate'),
+                      icon: Icon(Icons.person_add),
+                      label: Text('Add Candidate'),
                       backgroundColor: Colors.grey,
                     ),
                   );
@@ -202,7 +202,7 @@ class ElectionDetailsScreen extends StatelessWidget {
                   _buildDetailRow(
                     context,
                     'Total Votes',
-                    '${election.votes.values.fold(0, (sum, votes) => sum + votes)}',
+                    '${election.votes.values.fold(0, (acc, votes) => acc + votes)}',
                     Icons.how_to_vote,
                   ),
                 ],
@@ -276,7 +276,7 @@ class ElectionDetailsScreen extends StatelessWidget {
                 }
 
                 final voteCounts = snapshot.data!;
-                final totalVotes = voteCounts.values.fold(0, (sum, votes) => sum + votes);
+                final totalVotes = voteCounts.values.fold(0, (acc, votes) => acc + votes);
 
                 return Card(
                   child: Padding(
@@ -351,7 +351,7 @@ class ElectionDetailsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+  color: color.withAlpha((0.1 * 255).round()),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -611,6 +611,10 @@ class ElectionDetailsScreen extends StatelessWidget {
     );
 
     if (confirm == true) {
+      // The called method checks context.mounted before using the context after awaits.
+      // Analyzer flags passing BuildContext across async gaps here; it's safe because
+      // we validate mounted inside `_activateElection` before any context use.
+      // ignore: use_build_context_synchronously
       await _activateElection(context, election);
     }
   }
@@ -680,6 +684,8 @@ class ElectionDetailsScreen extends StatelessWidget {
     );
 
     if (confirm == true) {
+      // `_deleteElection` validates context.mounted before any context-based calls.
+      // ignore: use_build_context_synchronously
       await _deleteElection(context, election.id);
     }
   }
