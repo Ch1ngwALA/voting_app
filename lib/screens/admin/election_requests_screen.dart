@@ -127,42 +127,29 @@ class ElectionRequestsScreen extends StatelessWidget {
                                     DateTime start = req.proposedStartDate;
                                     DateTime end = req.proposedEndDate;
                                     return StatefulBuilder(builder: (innerCtx, setState) {
+                                        // For same-day approvals we keep the date fixed and only allow
+                                        // editing the times. Use time pickers so admins can't change the date.
                                         Future<void> pickStart() async {
-                                        // use parentContext for pickers to avoid using dialog BuildContext across async gaps
-                                        final pickedDate = await showDatePicker(
-                                          context: parentContext,
-                                          initialDate: start,
-                                          firstDate: DateTime(2000),
-                                          lastDate: DateTime(2100),
-                                        );
-                                        if (pickedDate == null) return;
-                                        final pickedTime = await showTimePicker(
-                                          context: parentContext,
-                                          initialTime: TimeOfDay.fromDateTime(start),
-                                        );
-                                        if (pickedTime == null) return;
-                                        setState(() {
-                                          start = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-                                        });
-                                      }
+                                          final pickedTime = await showTimePicker(
+                                            context: parentContext,
+                                            initialTime: TimeOfDay.fromDateTime(start),
+                                          );
+                                          if (pickedTime == null) return;
+                                          setState(() {
+                                            start = DateTime(start.year, start.month, start.day, pickedTime.hour, pickedTime.minute);
+                                          });
+                                        }
 
-                                      Future<void> pickEnd() async {
-                                        final pickedDate = await showDatePicker(
-                                          context: parentContext,
-                                          initialDate: end,
-                                          firstDate: DateTime(2000),
-                                          lastDate: DateTime(2100),
-                                        );
-                                        if (pickedDate == null) return;
-                                        final pickedTime = await showTimePicker(
-                                          context: parentContext,
-                                          initialTime: TimeOfDay.fromDateTime(end),
-                                        );
-                                        if (pickedTime == null) return;
-                                        setState(() {
-                                          end = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
-                                        });
-                                      }
+                                        Future<void> pickEnd() async {
+                                          final pickedTime = await showTimePicker(
+                                            context: parentContext,
+                                            initialTime: TimeOfDay.fromDateTime(end),
+                                          );
+                                          if (pickedTime == null) return;
+                                          setState(() {
+                                            end = DateTime(end.year, end.month, end.day, pickedTime.hour, pickedTime.minute);
+                                          });
+                                        }
 
                                       bool processing = false;
 
