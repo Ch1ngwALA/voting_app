@@ -112,9 +112,26 @@ class _VotingScreenState extends State<VotingScreen> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: () => context.go('/election/${widget.electionId}'),
-                            child: const Text('View Results'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  final router = GoRouter.of(context);
+                                  if (router.canPop()) {
+                                    router.pop();
+                                  } else {
+                                    router.go('/student-dashboard');
+                                  }
+                                },
+                                child: const Text('Back'),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: () => context.go('/election/${widget.electionId}'),
+                                child: const Text('View Results'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
