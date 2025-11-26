@@ -31,10 +31,11 @@ class ElectionListScreen extends StatelessWidget {
       body: user == null
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<List<Election>>(
-              // TEMPORARILY showing ALL elections (no filtering)
+              // Show elections; admins should see pending requests as well
               stream: Provider.of<FirestoreService>(context).getElectionsStream(
                 university: null, // Show all universities
                 department: null, // Show all departments
+                adminView: user.role == UserRole.admin,
               ),
               builder: (context, snapshot) {
                 debugPrint('ElectionListScreen - ConnectionState: ${snapshot.connectionState}');

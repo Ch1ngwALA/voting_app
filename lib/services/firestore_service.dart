@@ -42,14 +42,26 @@ class FirestoreService {
   Stream<List<Election>> getElectionsStream({
     String? university,
     String? department,
+    // When true, include pending election requests (for admin review).
+    bool adminView = false,
   }) {
-  debugPrint('Getting elections stream for university: $university, department: $department');
+  debugPrint('Getting elections stream for university: $university, department: $department, adminView: $adminView');
     
     try {
       // If no filters, just get all elections (simplest query)
       if (university == null && department == null) {
   debugPrint('Fetching ALL elections (no filters)');
-        return _db.collection('election_requests').snapshots().map((snapshot) {
+        final coll = _db.collection('election_requests');
+        // If not admin view, only return approved/active elections.
+        final Query baseQuery = adminView
+            ? coll
+            : coll.where('status', whereIn: [
+                'approved',
+                'active',
+                ElectionStatus.active.toString(),
+              ]);
+
+        return baseQuery.snapshots().map((snapshot) {
           debugPrint('All elections snapshot received: ${snapshot.docs.length} documents');
           if (snapshot.docs.isEmpty) {
             debugPrint('WARNING: No election documents found in Firestore!');
@@ -57,10 +69,10 @@ class FirestoreService {
           final elections = snapshot.docs.map((doc) {
             try {
               debugPrint('Election doc: ${doc.id}');
-              final data = doc.data();
-              debugPrint('  Title: ${data['title']}');
-              debugPrint('  University: ${data['university']}');
-              debugPrint('  Department: ${data['department']}');
+              final data = doc.data() as Map<String, dynamic>?;
+              debugPrint('  Title: ${data?['title'] ?? ''}');
+              debugPrint('  University: ${data?['university'] ?? ''}');
+              debugPrint('  Department: ${data?['department'] ?? ''}');
               return Election.fromFirestore(doc);
             } catch (e) {
               debugPrint('Error parsing election ${doc.id}: $e');
@@ -72,8 +84,8 @@ class FirestoreService {
         });
       }
       
-      // With filters - build query
-      Query query = _db.collection('election_requests');
+  // With filters - build query
+  Query query = _db.collection('election_requests');
       
       // Add filters first
       if (university != null) {
@@ -86,6 +98,15 @@ class FirestoreService {
       
       // Then add ordering - this might require a composite index
       query = query.orderBy('createdAt', descending: true);
+
+      // If not admin view, apply status filter to the query
+      if (!adminView) {
+        query = query.where('status', whereIn: [
+          'approved',
+          'active',
+          ElectionStatus.active.toString(),
+        ]);
+      }
 
       return query.snapshots().map((snapshot) {
   debugPrint('Elections snapshot received: ${snapshot.docs.length} documents');

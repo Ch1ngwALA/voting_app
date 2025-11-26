@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
+import '../../models/user.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/firestore_service.dart';
 import '../../models/election.dart';
@@ -10,7 +12,9 @@ class ResultsOverviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firestore = Provider.of<FirestoreService>(context);
+  final firestore = Provider.of<FirestoreService>(context);
+  final authService = Provider.of<AuthService>(context);
+  final isAdminView = authService.currentUser?.role == UserRole.admin;
 
     return Scaffold(
       appBar: AppBar(
@@ -30,7 +34,7 @@ class ResultsOverviewScreen extends StatelessWidget {
         title: const Text('Live Results'),
       ),
       body: StreamBuilder<List<Election>>(
-        stream: firestore.getElectionsStream(),
+        stream: firestore.getElectionsStream(adminView: isAdminView),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
