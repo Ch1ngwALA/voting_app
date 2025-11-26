@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/firestore_service.dart';
 import '../../models/vote.dart';
+import '../../models/candidate.dart';
+import '../../services/auth_service.dart';
 import 'package:intl/intl.dart';
 
 // NOTE: This file intentionally uses some dialog/picker flows that require
@@ -16,6 +18,130 @@ import 'package:intl/intl.dart';
 
 class ElectionRequestsScreen extends StatelessWidget {
   const ElectionRequestsScreen({super.key});
+
+  // Show add candidate dialog inline (used in requests screen)
+  Future<void> _showAddCandidateDialog(BuildContext context, FirestoreService firestore, String electionId) async {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final manifestoController = TextEditingController();
+
+  final authService = Provider.of<AuthService>(context, listen: false);
+  final currentUser = authService.currentUser;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Add Candidate'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Candidate Name *', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email *', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              TextField(controller: manifestoController, decoration: const InputDecoration(labelText: 'Manifesto (optional)', border: OutlineInputBorder()), maxLines: 3),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty || emailController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and Email are required'), backgroundColor: Colors.red));
+                return;
+              }
+
+              final candidate = Candidate(
+                id: '',
+                userId: currentUser?.id ?? '',
+                electionId: electionId,
+                name: nameController.text.trim(),
+                email: emailController.text.trim(),
+                university: '',
+                department: '',
+                manifesto: manifestoController.text.trim(),
+                profileImageUrl: null,
+                createdAt: DateTime.now(),
+              );
+
+              try {
+                await firestore.addCandidate(candidate);
+                if (!context.mounted) return;
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidate added')));
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding candidate: $e')));
+              }
+            },
+            child: const Text('Add Candidate'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showEditCandidateDialog(BuildContext context, FirestoreService firestore, Candidate candidate) async {
+    final nameController = TextEditingController(text: candidate.name);
+    final emailController = TextEditingController(text: candidate.email);
+    final manifestoController = TextEditingController(text: candidate.manifesto);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Candidate'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Candidate Name *', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email *', border: OutlineInputBorder()), keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              TextField(controller: manifestoController, decoration: const InputDecoration(labelText: 'Manifesto (optional)', border: OutlineInputBorder()), maxLines: 3),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isEmpty || emailController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name and Email are required'), backgroundColor: Colors.red));
+                return;
+              }
+
+              final updated = Candidate(
+                id: candidate.id,
+                userId: candidate.userId,
+                electionId: candidate.electionId,
+                name: nameController.text.trim(),
+                email: emailController.text.trim(),
+                university: candidate.university,
+                department: candidate.department,
+                manifesto: manifestoController.text.trim(),
+                profileImageUrl: candidate.profileImageUrl,
+                createdAt: candidate.createdAt,
+              );
+
+              try {
+                await firestore.updateCandidate(updated);
+                if (!context.mounted) return;
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidate updated')));
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating candidate: $e')));
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +214,90 @@ class ElectionRequestsScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
+                      // Inline candidates list for admin: show existing candidates and allow add/edit/delete
+                      StreamBuilder<List<Candidate>>(
+                        stream: firestore.getCandidatesStream(req.id),
+                        builder: (ctx, candSnap) {
+                          if (candSnap.connectionState == ConnectionState.waiting) {
+                            return const SizedBox(height: 40, child: Center(child: CircularProgressIndicator()));
+                          }
+                          if (candSnap.hasError) {
+                            return Text('Error loading candidates: ${candSnap.error}');
+                          }
+
+                          final candidates = candSnap.data ?? [];
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Candidates', style: Theme.of(context).textTheme.titleSmall),
+                                  TextButton.icon(
+                                    icon: const Icon(Icons.person_add),
+                                    label: const Text('Add'),
+                                    onPressed: () => _showAddCandidateDialog(context, firestore, req.id),
+                                  ),
+                                ],
+                              ),
+                              if (candidates.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text('No candidates yet'),
+                                )
+                              else
+                                Column(
+                                  children: candidates.map((c) => ListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        title: Text(c.name),
+                                        subtitle: Text(c.email),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit, size: 20),
+                                              onPressed: () => _showEditCandidateDialog(context, firestore, c),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_forever, size: 20),
+                                              onPressed: () async {
+                                                final confirm = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (dCtx) => AlertDialog(
+                                                    title: const Text('Delete Candidate'),
+                                                    content: Text('Delete candidate "${c.name}"? This cannot be undone.'),
+                                                    actions: [
+                                                      TextButton(onPressed: () => Navigator.of(dCtx).pop(false), child: const Text('Cancel')),
+                                                      ElevatedButton(
+                                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                                        onPressed: () => Navigator.of(dCtx).pop(true),
+                                                        child: const Text('Delete'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+
+                                                if (confirm == true) {
+                                                  try {
+                                                    await firestore.deleteCandidate(c.id, req.id);
+                                                    if (!context.mounted) return;
+                                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidate deleted')));
+                                                  } catch (e) {
+                                                    if (!context.mounted) return;
+                                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting candidate: $e')));
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      )).toList(),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
