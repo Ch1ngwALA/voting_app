@@ -107,13 +107,42 @@ class ElectionRequestsScreen extends StatelessWidget {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () async {
-                              // Approve — if request is for the same calendar day, require admin to set exact times
+                              // Approve — ensure at least one candidate exists, then if request is for the same calendar day,
+                              // require admin to set exact times.
+                              final parentContext = context;
+
+                              // Ensure candidates exist before approving
+                              final existingCandidates = await firestore.getCandidates(req.id);
+                              if (existingCandidates.isEmpty) {
+                                // Prompt admin to add candidates first
+                                await showDialog<void>(
+                                  context: parentContext,
+                                  builder: (dCtx) => AlertDialog(
+                                    title: const Text('No candidates'),
+                                    content: const Text('Please add at least one candidate before approving this election.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(dCtx).pop(),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.of(dCtx).pop();
+                                          // Navigate to election details so admin can add candidates
+                                          // Use parentContext to navigate safely after the dialog
+                                          parentContext.go('/election/${req.id}');
+                                        },
+                                        child: const Text('Add Candidate'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
                               final isSameDay = req.proposedStartDate.year == req.proposedEndDate.year &&
                                   req.proposedStartDate.month == req.proposedEndDate.month &&
                                   req.proposedStartDate.day == req.proposedEndDate.day;
-
-                              // capture parent context for pickers and messaging
-                              final parentContext = context;
                               if (isSameDay) {
                                 // show dialog to pick exact start/end timestamps
                                 final outerMessenger = ScaffoldMessenger.of(parentContext);
