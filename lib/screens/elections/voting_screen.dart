@@ -411,6 +411,20 @@ class _VotingScreenState extends State<VotingScreen> {
           actions: [
             TextButton(
               onPressed: () {
+                // Close dialog and navigate back to previous screen if possible.
+                Navigator.of(context).pop();
+                final router = GoRouter.of(context);
+                if (router.canPop()) {
+                  router.pop();
+                } else {
+                  // Fallback: go to student dashboard
+                  router.go('/student-dashboard');
+                }
+              },
+              child: const Text('Back'),
+            ),
+            TextButton(
+              onPressed: () {
                 Navigator.of(context).pop();
                 context.go('/election/${widget.electionId}');
               },
