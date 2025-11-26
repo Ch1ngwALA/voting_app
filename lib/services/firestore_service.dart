@@ -170,7 +170,52 @@ class FirestoreService {
   }
 
   Future<void> deleteElection(String electionId) async {
-    await _db.collection('election_requests').doc(electionId).delete();
+    // Cascade delete: remove candidates and votes related to this election to
+    // ensure deleted elections don't leave orphaned candidate or vote records
+    // (so they won't appear in users' "My Votes" history).
+    try {
+      // Delete candidates belonging to this election
+      final candSnapshot = await _db.collection('candidates').where('electionId', isEqualTo: electionId).get();
+      final voteSnapshot = await _db.collection('votes').where('electionId', isEqualTo: electionId).get();
+
+      // Use batches to delete (Firestore limits 500 operations per batch)
+      WriteBatch batch = _db.batch();
+      int opCount = 0;
+
+      for (final doc in candSnapshot.docs) {
+        batch.delete(doc.reference);
+        opCount++;
+        if (opCount >= 450) {
+          await batch.commit();
+          batch = _db.batch();
+          opCount = 0;
+        }
+      }
+
+      for (final doc in voteSnapshot.docs) {
+        batch.delete(doc.reference);
+        opCount++;
+        if (opCount >= 450) {
+          await batch.commit();
+          batch = _db.batch();
+          opCount = 0;
+        }
+      }
+
+      // Ensure election doc removal is included
+      final electionRef = _db.collection('election_requests').doc(electionId);
+      batch.delete(electionRef);
+      await batch.commit();
+    } catch (e) {
+      debugPrint('Error cascading delete for election $electionId: $e');
+      // Attempt to at least delete the election doc if cascade failed
+      try {
+        await _db.collection('election_requests').doc(electionId).delete();
+      } catch (err) {
+        debugPrint('Error deleting election doc $electionId: $err');
+        rethrow;
+      }
+    }
   }
 
   // Candidate operations
